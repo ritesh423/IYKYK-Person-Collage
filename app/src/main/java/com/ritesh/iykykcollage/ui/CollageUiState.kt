@@ -1,6 +1,7 @@
 package com.ritesh.iykykcollage.ui
 
 import com.ritesh.iykykcollage.model.SelectedVideo
+import com.ritesh.iykykcollage.video.VideoMetadata
 
 sealed interface CollageUiState {
     data object AwaitingVideo : CollageUiState
@@ -15,9 +16,15 @@ sealed interface CollageUiState {
         val progress: Float,
     ) : CollageUiState
 
+    data class FramesSampled(
+        val video: SelectedVideo,
+        val metadata: VideoMetadata,
+        val requestedFrames: Int,
+        val decodedFrames: Int,
+    ) : CollageUiState
+
     data class Failure(
         val video: SelectedVideo?,
         val message: String,
     ) : CollageUiState
 }
-

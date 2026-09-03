@@ -18,6 +18,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -36,6 +37,8 @@ fun CollageScreen(
     uiState: CollageUiState,
     onChooseVideo: () -> Unit,
     onClearSelection: () -> Unit,
+    onAnalyzeVideo: () -> Unit,
+    onCancelProcessing: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Box(
@@ -82,8 +85,17 @@ fun CollageScreen(
                         video = uiState.video,
                         onChooseVideo = onChooseVideo,
                         onClearSelection = onClearSelection,
+                        onAnalyzeVideo = onAnalyzeVideo,
                     )
-                    is CollageUiState.Processing -> ProcessingCard(uiState)
+                    is CollageUiState.Processing -> ProcessingCard(
+                        state = uiState,
+                        onCancelProcessing = onCancelProcessing,
+                    )
+                    is CollageUiState.FramesSampled -> FramesSampledCard(
+                        state = uiState,
+                        onAnalyzeVideo = onAnalyzeVideo,
+                        onChooseVideo = onChooseVideo,
+                    )
                     is CollageUiState.Failure -> FailureCard(uiState, onChooseVideo)
                 }
             }
@@ -163,6 +175,7 @@ private fun VideoReadyCard(
     video: SelectedVideo,
     onChooseVideo: () -> Unit,
     onClearSelection: () -> Unit,
+    onAnalyzeVideo: () -> Unit,
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -190,8 +203,16 @@ private fun VideoReadyCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(22.dp))
+            Button(
+                onClick = onAnalyzeVideo,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+            ) {
+                Text("Analyze video", modifier = Modifier.padding(vertical = 7.dp))
+            }
+            Spacer(Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Button(
+                OutlinedButton(
                     onClick = onChooseVideo,
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(16.dp),
@@ -210,12 +231,77 @@ private fun VideoReadyCard(
 }
 
 @Composable
-private fun ProcessingCard(state: CollageUiState.Processing) {
+private fun ProcessingCard(
+    state: CollageUiState.Processing,
+    onCancelProcessing: () -> Unit,
+) {
     Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp)) {
         Column(Modifier.padding(24.dp)) {
             Text(state.stage, style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(12.dp))
+            LinearProgressIndicator(
+                progress = { state.progress },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(10.dp))
             Text("${(state.progress * 100).toInt()}% • ${state.video.displayName}")
+            Spacer(Modifier.height(18.dp))
+            OutlinedButton(
+                onClick = onCancelProcessing,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Cancel")
+            }
+        }
+    }
+}
+
+@Composable
+private fun FramesSampledCard(
+    state: CollageUiState.FramesSampled,
+    onAnalyzeVideo: () -> Unit,
+    onChooseVideo: () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    ) {
+        Column(Modifier.padding(24.dp)) {
+            Text(
+                text = "Video decoded successfully",
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(Modifier.height(10.dp))
+            Text(
+                text = "${state.metadata.displayWidth} × ${state.metadata.displayHeight} • " +
+                    "${state.metadata.durationMs / 1_000}s",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = "Decoded ${state.decodedFrames} of ${state.requestedFrames} sampled frames. " +
+                    "Face detection comes next.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(20.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedButton(
+                    onClick = onChooseVideo,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("Choose another")
+                }
+                Button(
+                    onClick = onAnalyzeVideo,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("Run again")
+                }
+            }
         }
     }
 }
@@ -235,4 +321,3 @@ private fun FailureCard(
         }
     }
 }
-
