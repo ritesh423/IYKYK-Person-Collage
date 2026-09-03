@@ -1,0 +1,14 @@
+*.iml
+.gradle/
+.idea/
+.kotlin/
+local.properties
+build/
+**/build/
+captures/
+.DS_Store
+*.apk
+
+# The supplied assessment videos are test inputs, not source code.
+local-test-media/
+
