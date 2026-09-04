@@ -1,5 +1,7 @@
 package com.ritesh.iykykcollage.ui
 
+import com.ritesh.iykykcollage.face.FaceAnalyzer
+import com.ritesh.iykykcollage.face.FrameFaceDetection
 import com.ritesh.iykykcollage.video.FrameSamplingProgress
 import com.ritesh.iykykcollage.video.SampledVideoFrame
 import com.ritesh.iykykcollage.video.VideoFrameSampler
@@ -37,7 +39,7 @@ class CollageViewModelTest {
 
     @Test
     fun selectingVideo_exposesReadyState() {
-        val viewModel = CollageViewModel(FakeVideoFrameSampler())
+        val viewModel = createViewModel()
 
         viewModel.onVideoSelected(
             uri = "content://video/sample-1",
@@ -51,7 +53,7 @@ class CollageViewModelTest {
 
     @Test
     fun clearingSelection_returnsToAwaitingVideo() {
-        val viewModel = CollageViewModel(FakeVideoFrameSampler())
+        val viewModel = createViewModel()
         viewModel.onVideoSelected("content://video/sample-1", "sample-1.mp4")
 
         viewModel.onSelectionCleared()
@@ -60,25 +62,28 @@ class CollageViewModelTest {
     }
 
     @Test
-    fun analyzingVideo_exposesSamplingSummary() = runTest(testDispatcher.scheduler) {
-        val viewModel = CollageViewModel(FakeVideoFrameSampler())
+    fun analyzingVideo_exposesFaceDetectionSummary() = runTest(testDispatcher.scheduler) {
+        val viewModel = createViewModel()
         viewModel.onVideoSelected("content://video/sample-1", "sample-1.mp4")
 
         viewModel.onAnalyzeVideo()
         advanceUntilIdle()
 
         val state = viewModel.uiState.value
-        assertTrue(state is CollageUiState.FramesSampled)
-        state as CollageUiState.FramesSampled
+        assertTrue(state is CollageUiState.FacesDetected)
+        state as CollageUiState.FacesDetected
         assertEquals(120, state.requestedFrames)
         assertEquals(120, state.decodedFrames)
         assertEquals(1080, state.metadata.displayWidth)
         assertEquals(1920, state.metadata.displayHeight)
+        assertEquals(0, state.faceSummary.totalFaceObservations)
     }
 
     @Test
     fun cancelingAnalysis_returnsToReadyState() = runTest(testDispatcher.scheduler) {
-        val viewModel = CollageViewModel(FakeVideoFrameSampler(suspendUntilCanceled = true))
+        val viewModel = createViewModel(
+            sampler = FakeVideoFrameSampler(suspendUntilCanceled = true),
+        )
         viewModel.onVideoSelected("content://video/sample-1", "sample-1.mp4")
 
         viewModel.onAnalyzeVideo()
@@ -93,8 +98,10 @@ class CollageViewModelTest {
 
     @Test
     fun samplingFailure_exposesUsefulErrorState() = runTest(testDispatcher.scheduler) {
-        val viewModel = CollageViewModel(
-            FakeVideoFrameSampler(failure = VideoSamplingException("Video is unreadable")),
+        val viewModel = createViewModel(
+            sampler = FakeVideoFrameSampler(
+                failure = VideoSamplingException("Video is unreadable"),
+            ),
         )
         viewModel.onVideoSelected("content://video/broken", "broken.mp4")
 
@@ -104,6 +111,23 @@ class CollageViewModelTest {
         val state = viewModel.uiState.value
         assertTrue(state is CollageUiState.Failure)
         assertEquals("Video is unreadable", (state as CollageUiState.Failure).message)
+    }
+
+    private fun createViewModel(
+        sampler: VideoFrameSampler = FakeVideoFrameSampler(),
+    ) = CollageViewModel(
+        frameSampler = sampler,
+        faceAnalyzer = FakeFaceAnalyzer,
+    )
+
+    private data object FakeFaceAnalyzer : FaceAnalyzer {
+        override suspend fun analyze(frame: SampledVideoFrame) = FrameFaceDetection(
+            frameIndex = frame.index,
+            timestampUs = frame.timestampUs,
+            faces = emptyList(),
+        )
+
+        override fun close() = Unit
     }
 
     private class FakeVideoFrameSampler(

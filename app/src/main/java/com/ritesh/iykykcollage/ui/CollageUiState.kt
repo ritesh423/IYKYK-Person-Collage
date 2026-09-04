@@ -1,5 +1,6 @@
 package com.ritesh.iykykcollage.ui
 
+import com.ritesh.iykykcollage.face.FaceDetectionSummary
 import com.ritesh.iykykcollage.model.SelectedVideo
 import com.ritesh.iykykcollage.video.VideoMetadata
 
@@ -16,11 +17,12 @@ sealed interface CollageUiState {
         val progress: Float,
     ) : CollageUiState
 
-    data class FramesSampled(
+    data class FacesDetected(
         val video: SelectedVideo,
         val metadata: VideoMetadata,
         val requestedFrames: Int,
         val decodedFrames: Int,
+        val faceSummary: FaceDetectionSummary,
     ) : CollageUiState
 
     data class Failure(

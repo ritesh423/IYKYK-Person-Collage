@@ -91,7 +91,7 @@ fun CollageScreen(
                         state = uiState,
                         onCancelProcessing = onCancelProcessing,
                     )
-                    is CollageUiState.FramesSampled -> FramesSampledCard(
+                    is CollageUiState.FacesDetected -> FacesDetectedCard(
                         state = uiState,
                         onAnalyzeVideo = onAnalyzeVideo,
                         onChooseVideo = onChooseVideo,
@@ -257,8 +257,8 @@ private fun ProcessingCard(
 }
 
 @Composable
-private fun FramesSampledCard(
-    state: CollageUiState.FramesSampled,
+private fun FacesDetectedCard(
+    state: CollageUiState.FacesDetected,
     onAnalyzeVideo: () -> Unit,
     onChooseVideo: () -> Unit,
 ) {
@@ -269,7 +269,7 @@ private fun FramesSampledCard(
     ) {
         Column(Modifier.padding(24.dp)) {
             Text(
-                text = "Video decoded successfully",
+                text = "Face detection complete",
                 color = MaterialTheme.colorScheme.primary,
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,
@@ -283,8 +283,20 @@ private fun FramesSampledCard(
             )
             Spacer(Modifier.height(6.dp))
             Text(
-                text = "Decoded ${state.decodedFrames} of ${state.requestedFrames} sampled frames. " +
-                    "Face detection comes next.",
+                text = "${state.faceSummary.totalFaceObservations} face observations across " +
+                    "${state.faceSummary.framesWithFaces} of ${state.faceSummary.analyzedFrames} frames.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = "${state.faceSummary.matchingCandidates} usable for matching • " +
+                    "${state.faceSummary.representativeCandidates} portrait candidates",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = "Up to ${state.faceSummary.maxFacesInOneFrame} people in one frame. " +
+                    "Identity tracking comes next.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(20.dp))

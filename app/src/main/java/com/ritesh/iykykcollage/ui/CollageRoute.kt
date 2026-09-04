@@ -12,15 +12,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.ritesh.iykykcollage.video.AndroidVideoFrameSampler
 
 @Composable
 fun CollageRoute() {
     val context = LocalContext.current
     val viewModelFactory = remember(context.applicationContext) {
-        CollageViewModelFactory(
-            frameSampler = AndroidVideoFrameSampler(context.applicationContext),
-        )
+        CollageViewModelFactory(context.applicationContext)
     }
     val viewModel: CollageViewModel = viewModel(factory = viewModelFactory)
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()

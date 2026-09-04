@@ -2,6 +2,8 @@ package com.ritesh.iykykcollage.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ritesh.iykykcollage.face.FaceAnalyzer
+import com.ritesh.iykykcollage.face.FaceDetectionAccumulator
 import com.ritesh.iykykcollage.model.SelectedVideo
 import com.ritesh.iykykcollage.video.VideoFrameSampler
 import kotlinx.coroutines.CancellationException
@@ -13,6 +15,7 @@ import kotlinx.coroutines.launch
 
 class CollageViewModel(
     private val frameSampler: VideoFrameSampler,
+    private val faceAnalyzer: FaceAnalyzer,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow<CollageUiState>(CollageUiState.AwaitingVideo)
     val uiState: StateFlow<CollageUiState> = _uiState.asStateFlow()
@@ -36,7 +39,7 @@ class CollageViewModel(
     fun onAnalyzeVideo() {
         val video = when (val state = _uiState.value) {
             is CollageUiState.VideoReady -> state.video
-            is CollageUiState.FramesSampled -> state.video
+            is CollageUiState.FacesDetected -> state.video
             else -> return
         }
 
@@ -49,25 +52,27 @@ class CollageViewModel(
             )
 
             try {
+                val faceAccumulator = FaceDetectionAccumulator()
                 val result = frameSampler.sample(
                     uri = video.uri,
-                    onFrame = {
-                        // Face detection will consume each temporary bitmap in Milestone 3.
+                    onFrame = { frame ->
+                        faceAccumulator.add(faceAnalyzer.analyze(frame))
                     },
                     onProgress = { progress ->
                         _uiState.value = CollageUiState.Processing(
                             video = video,
-                            stage = "Sampling frame ${progress.processedFrames} of ${progress.totalFrames}",
+                            stage = "Detecting faces • frame ${progress.processedFrames} of ${progress.totalFrames}",
                             progress = progress.fraction,
                         )
                     },
                 )
 
-                _uiState.value = CollageUiState.FramesSampled(
+                _uiState.value = CollageUiState.FacesDetected(
                     video = video,
                     metadata = result.metadata,
                     requestedFrames = result.requestedFrames,
                     decodedFrames = result.decodedFrames,
+                    faceSummary = faceAccumulator.snapshot(),
                 )
             } catch (error: CancellationException) {
                 throw error
@@ -84,5 +89,16 @@ class CollageViewModel(
         val video = (_uiState.value as? CollageUiState.Processing)?.video ?: return
         processingJob?.cancel()
         _uiState.value = CollageUiState.VideoReady(video)
+    }
+
+    override fun onCleared() {
+        val activeJob = processingJob
+        activeJob?.cancel()
+        if (activeJob == null || activeJob.isCompleted) {
+            faceAnalyzer.close()
+        } else {
+            activeJob.invokeOnCompletion { faceAnalyzer.close() }
+        }
+        super.onCleared()
     }
 }
