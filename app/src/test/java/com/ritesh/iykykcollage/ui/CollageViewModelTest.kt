@@ -2,6 +2,8 @@ package com.ritesh.iykykcollage.ui
 
 import com.ritesh.iykykcollage.face.FaceAnalyzer
 import com.ritesh.iykykcollage.face.FrameFaceDetection
+import com.ritesh.iykykcollage.tracking.SceneBoundaryDetector
+import com.ritesh.iykykcollage.tracking.SceneChange
 import com.ritesh.iykykcollage.video.FrameSamplingProgress
 import com.ritesh.iykykcollage.video.SampledVideoFrame
 import com.ritesh.iykykcollage.video.VideoFrameSampler
@@ -62,7 +64,7 @@ class CollageViewModelTest {
     }
 
     @Test
-    fun analyzingVideo_exposesFaceDetectionSummary() = runTest(testDispatcher.scheduler) {
+    fun analyzingVideo_exposesFaceTrackletSummary() = runTest(testDispatcher.scheduler) {
         val viewModel = createViewModel()
         viewModel.onVideoSelected("content://video/sample-1", "sample-1.mp4")
 
@@ -70,13 +72,14 @@ class CollageViewModelTest {
         advanceUntilIdle()
 
         val state = viewModel.uiState.value
-        assertTrue(state is CollageUiState.FacesDetected)
-        state as CollageUiState.FacesDetected
+        assertTrue(state is CollageUiState.TrackletsBuilt)
+        state as CollageUiState.TrackletsBuilt
         assertEquals(120, state.requestedFrames)
         assertEquals(120, state.decodedFrames)
         assertEquals(1080, state.metadata.displayWidth)
         assertEquals(1920, state.metadata.displayHeight)
         assertEquals(0, state.faceSummary.totalFaceObservations)
+        assertEquals(0, state.trackletResult.summary.totalTracklets)
     }
 
     @Test
@@ -118,6 +121,7 @@ class CollageViewModelTest {
     ) = CollageViewModel(
         frameSampler = sampler,
         faceAnalyzer = FakeFaceAnalyzer,
+        sceneBoundaryDetector = FakeSceneBoundaryDetector,
     )
 
     private data object FakeFaceAnalyzer : FaceAnalyzer {
@@ -128,6 +132,15 @@ class CollageViewModelTest {
         )
 
         override fun close() = Unit
+    }
+
+    private data object FakeSceneBoundaryDetector : SceneBoundaryDetector {
+        override fun analyze(frame: SampledVideoFrame) = SceneChange(
+            isSceneBoundary = false,
+            differenceScore = 0f,
+        )
+
+        override fun reset() = Unit
     }
 
     private class FakeVideoFrameSampler(

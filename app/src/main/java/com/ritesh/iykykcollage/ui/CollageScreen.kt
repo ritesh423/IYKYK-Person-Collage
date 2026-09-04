@@ -91,7 +91,7 @@ fun CollageScreen(
                         state = uiState,
                         onCancelProcessing = onCancelProcessing,
                     )
-                    is CollageUiState.FacesDetected -> FacesDetectedCard(
+                    is CollageUiState.TrackletsBuilt -> TrackletsBuiltCard(
                         state = uiState,
                         onAnalyzeVideo = onAnalyzeVideo,
                         onChooseVideo = onChooseVideo,
@@ -257,11 +257,17 @@ private fun ProcessingCard(
 }
 
 @Composable
-private fun FacesDetectedCard(
-    state: CollageUiState.FacesDetected,
+private fun TrackletsBuiltCard(
+    state: CollageUiState.TrackletsBuilt,
     onAnalyzeVideo: () -> Unit,
     onChooseVideo: () -> Unit,
 ) {
+    val trackingSummary = state.trackletResult.summary
+    val singleFrameTrackletLabel = if (trackingSummary.singleFrameTracklets == 1) {
+        "single-frame tracklet"
+    } else {
+        "single-frame tracklets"
+    }
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(28.dp),
@@ -269,7 +275,7 @@ private fun FacesDetectedCard(
     ) {
         Column(Modifier.padding(24.dp)) {
             Text(
-                text = "Face detection complete",
+                text = "Face tracking complete",
                 color = MaterialTheme.colorScheme.primary,
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,
@@ -289,14 +295,15 @@ private fun FacesDetectedCard(
             )
             Spacer(Modifier.height(6.dp))
             Text(
-                text = "${state.faceSummary.matchingCandidates} usable for matching • " +
-                    "${state.faceSummary.representativeCandidates} portrait candidates",
+                text = "${trackingSummary.totalTracklets} temporal face tracklets • " +
+                    "${trackingSummary.trackletsWithMatchingCandidates} with preferred matching frames",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(6.dp))
             Text(
-                text = "Up to ${state.faceSummary.maxFacesInOneFrame} people in one frame. " +
-                    "Identity tracking comes next.",
+                text = "${trackingSummary.sceneBoundaries} scene boundaries • " +
+                    "${trackingSummary.singleFrameTracklets} $singleFrameTrackletLabel. " +
+                    "Face embeddings come next.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(20.dp))

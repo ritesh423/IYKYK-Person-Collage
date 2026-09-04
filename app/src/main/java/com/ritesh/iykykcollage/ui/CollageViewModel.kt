@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.ritesh.iykykcollage.face.FaceAnalyzer
 import com.ritesh.iykykcollage.face.FaceDetectionAccumulator
 import com.ritesh.iykykcollage.model.SelectedVideo
+import com.ritesh.iykykcollage.tracking.FaceTrackletTracker
+import com.ritesh.iykykcollage.tracking.SceneBoundaryDetector
 import com.ritesh.iykykcollage.video.VideoFrameSampler
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -16,6 +18,7 @@ import kotlinx.coroutines.launch
 class CollageViewModel(
     private val frameSampler: VideoFrameSampler,
     private val faceAnalyzer: FaceAnalyzer,
+    private val sceneBoundaryDetector: SceneBoundaryDetector,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow<CollageUiState>(CollageUiState.AwaitingVideo)
     val uiState: StateFlow<CollageUiState> = _uiState.asStateFlow()
@@ -39,7 +42,7 @@ class CollageViewModel(
     fun onAnalyzeVideo() {
         val video = when (val state = _uiState.value) {
             is CollageUiState.VideoReady -> state.video
-            is CollageUiState.FacesDetected -> state.video
+            is CollageUiState.TrackletsBuilt -> state.video
             else -> return
         }
 
@@ -53,26 +56,36 @@ class CollageViewModel(
 
             try {
                 val faceAccumulator = FaceDetectionAccumulator()
+                val trackletTracker = FaceTrackletTracker()
+                sceneBoundaryDetector.reset()
                 val result = frameSampler.sample(
                     uri = video.uri,
                     onFrame = { frame ->
-                        faceAccumulator.add(faceAnalyzer.analyze(frame))
+                        val sceneChange = sceneBoundaryDetector.analyze(frame)
+                        val detection = faceAnalyzer.analyze(frame)
+                        faceAccumulator.add(detection)
+                        trackletTracker.add(
+                            frame = detection,
+                            isSceneTransitionFrame = sceneChange.isSceneBoundary,
+                        )
                     },
                     onProgress = { progress ->
                         _uiState.value = CollageUiState.Processing(
                             video = video,
-                            stage = "Detecting faces • frame ${progress.processedFrames} of ${progress.totalFrames}",
+                            stage = "Building face tracklets • frame ${progress.processedFrames} of ${progress.totalFrames}",
                             progress = progress.fraction,
                         )
                     },
                 )
 
-                _uiState.value = CollageUiState.FacesDetected(
+                val trackletResult = trackletTracker.finish()
+                _uiState.value = CollageUiState.TrackletsBuilt(
                     video = video,
                     metadata = result.metadata,
                     requestedFrames = result.requestedFrames,
                     decodedFrames = result.decodedFrames,
                     faceSummary = faceAccumulator.snapshot(),
+                    trackletResult = trackletResult,
                 )
             } catch (error: CancellationException) {
                 throw error

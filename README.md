@@ -4,7 +4,7 @@ An offline Android app that turns a portrait video into a shareable collage with
 
 ## Status
 
-The project is being built as a sequence of verified vertical slices. The current milestone streams four sampled frames per second through bundled, on-device ML Kit face detection. Each result carries face geometry, short-term tracking IDs, head pose, eye-open probabilities, smile probability, and separate quality decisions for identity matching and representative portraits. The current screen keeps aggregate counts; the next milestone will consume the per-frame observations for appearance tracking.
+The project is being built as a sequence of verified vertical slices. The current milestone separates hard scene transitions and associates frame-level face detections into conservative temporal tracklets. Tracklets retain timestamps, geometry, ML Kit tracking-ID evidence, and quality measurements without retaining the video bitmaps. They are intentionally provisional until on-device face embeddings can reconnect same-person fragments.
 
 ## Planned on-device pipeline
 
@@ -12,9 +12,10 @@ The project is being built as a sequence of verified vertical slices. The curren
 Selected video
   -> sampled frames
   -> face detection and visibility filtering
-  -> continuous face tracks (appearances)
-  -> FaceNet embeddings
+  -> scene boundaries and temporal face tracklets
+  -> on-device face embeddings
   -> constrained identity clustering
+  -> identity-aware appearance merging and counting
   -> representative-shot scoring
   -> collage rendering, saving, and sharing
 ```
@@ -61,6 +62,32 @@ Measured with the real Photo Picker and bundled detector on an API 36.1 emulator
 | Sample 3 | 120 | 116 | 127 | 99 | 49 | 2 |
 
 All runs completed without application, media-decoder, or ML Kit errors in logcat.
+
+## Temporal face tracking
+
+ML Kit tracking IDs are position-and-motion hints for nearby frames, not identity labels. A hard cut, missed detection, or internal tracker reset can change an ID for the same person. The tracker therefore applies evidence in this order:
+
+1. A detected scene transition closes every active tracklet.
+2. A plausible matching ML Kit tracking ID receives the strongest association score.
+3. When an ID is unavailable or stale after a detector gap, bounding-box intersection-over-union, center distance, and size similarity provide a conservative fallback.
+4. Candidate associations are applied highest-score first with one-to-one constraints, so one detection cannot update two tracklets.
+5. A tracklet remains active across at most 750 ms, which bridges up to two missed 4 FPS samples.
+
+Scene detection scales the current frame to a temporary 12 × 20 RGB signature and computes normalized mean absolute color difference from the previous signature. A score of at least `0.14` marks a transition, with a three-frame cooldown to avoid repeated boundaries during one visual transition. The transition frame separates scenes but does not seed a tracklet because motion blur or cross-fades make it unstable. The 240-pixel signature is immediately discarded.
+
+The association policy is deliberately biased toward splitting an uncertain track instead of merging different people. A split can be repaired later using face embeddings; an incorrect mixed-person track would contaminate identity evidence. For that reason, the tracklet count shown now is not yet the final appearance count.
+
+### Milestone 4 validation
+
+Measured in final runs through the real Photo Picker on an API 36.1 emulator:
+
+| Supplied video | Face observations | Frames with faces | Scene boundaries | Temporal tracklets | Tracklets with preferred matching frames | Single-frame tracklets |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Sample 1 | 126 | 114 | 17 | 23 | 17 | 1 |
+| Sample 2 | 127 | 117 | 17 | 20 | 19 | 0 |
+| Sample 3 | 129 | 116 | 17 | 23 | 18 | 1 |
+
+All 120 frames were processed in each run and no application crashes occurred. Sample 1's known ground truth of 20 appearances will be asserted after embeddings and identity-aware temporal merging; treating the current 23 conservative tracklets as final appearances would be conceptually incorrect.
 
 ## Build
 

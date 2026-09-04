@@ -12,3 +12,5 @@ captures/
 # The supplied assessment videos are test inputs, not source code.
 local-test-media/
 
+# Personal interview-preparation notes stay local and are not part of the submission.
+docs/LEARNING_NOTES.md

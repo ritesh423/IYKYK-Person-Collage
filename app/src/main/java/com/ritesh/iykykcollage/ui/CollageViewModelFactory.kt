@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.ritesh.iykykcollage.face.MlKitFaceAnalyzer
+import com.ritesh.iykykcollage.tracking.BitmapSceneBoundaryDetector
 import com.ritesh.iykykcollage.video.AndroidVideoFrameSampler
 
 class CollageViewModelFactory(
@@ -17,6 +18,7 @@ class CollageViewModelFactory(
             return CollageViewModel(
                 frameSampler = AndroidVideoFrameSampler(appContext),
                 faceAnalyzer = MlKitFaceAnalyzer(),
+                sceneBoundaryDetector = BitmapSceneBoundaryDetector(),
             ) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
