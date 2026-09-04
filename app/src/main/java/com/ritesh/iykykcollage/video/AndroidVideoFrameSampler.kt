@@ -56,6 +56,7 @@ class AndroidVideoFrameSampler(
                                 bitmap = bitmap,
                                 index = index,
                                 timestampUs = timestampUs,
+                                rotationDegrees = metadata.rotationDegrees,
                             ),
                         )
                         decodedFrames += 1

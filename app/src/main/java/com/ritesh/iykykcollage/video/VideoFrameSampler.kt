@@ -6,6 +6,7 @@ data class SampledVideoFrame(
     val bitmap: Bitmap,
     val index: Int,
     val timestampUs: Long,
+    val rotationDegrees: Int,
 )
 
 data class FrameSamplingProgress(
