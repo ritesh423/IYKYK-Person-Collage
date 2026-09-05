@@ -23,6 +23,7 @@ class FaceAppearanceCounter(
         return AppearanceCountingResult(
             people = people,
             unassignedTracklets = clustering.trackletsWithoutEmbeddings,
+            similarityThreshold = clustering.similarityThreshold,
         )
     }
 

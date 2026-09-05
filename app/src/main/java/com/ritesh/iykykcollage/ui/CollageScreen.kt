@@ -91,7 +91,7 @@ fun CollageScreen(
                         state = uiState,
                         onCancelProcessing = onCancelProcessing,
                     )
-                    is CollageUiState.EmbeddingsGenerated -> EmbeddingsGeneratedCard(
+                    is CollageUiState.PeopleCounted -> PeopleCountedCard(
                         state = uiState,
                         onAnalyzeVideo = onAnalyzeVideo,
                         onChooseVideo = onChooseVideo,
@@ -257,17 +257,15 @@ private fun ProcessingCard(
 }
 
 @Composable
-private fun EmbeddingsGeneratedCard(
-    state: CollageUiState.EmbeddingsGenerated,
+private fun PeopleCountedCard(
+    state: CollageUiState.PeopleCounted,
     onAnalyzeVideo: () -> Unit,
     onChooseVideo: () -> Unit,
 ) {
     val trackingSummary = state.trackletResult.summary
-    val singleFrameTrackletLabel = if (trackingSummary.singleFrameTracklets == 1) {
-        "single-frame tracklet"
-    } else {
-        "single-frame tracklets"
-    }
+    val result = state.appearanceResult
+    val peopleLabel = if (result.uniquePersonCount == 1) "person" else "people"
+    val appearanceLabel = if (result.totalAppearanceCount == 1) "appearance" else "appearances"
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(28.dp),
@@ -275,37 +273,53 @@ private fun EmbeddingsGeneratedCard(
     ) {
         Column(Modifier.padding(24.dp)) {
             Text(
-                text = "Face embeddings complete",
+                text = "People identified",
                 color = MaterialTheme.colorScheme.primary,
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,
             )
             Spacer(Modifier.height(10.dp))
             Text(
+                text = "${result.uniquePersonCount} $peopleLabel • " +
+                    "${result.totalAppearanceCount} $appearanceLabel",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
                 text = "${state.metadata.displayWidth} × ${state.metadata.displayHeight} • " +
-                    "${state.metadata.durationMs / 1_000}s",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Spacer(Modifier.height(6.dp))
-            Text(
-                text = "${state.faceSummary.totalFaceObservations} face observations across " +
-                    "${state.faceSummary.framesWithFaces} of ${state.faceSummary.analyzedFrames} frames.",
+                    "${state.metadata.durationMs / 1_000}s • ${state.faceSummary.analyzedFrames} frames",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            Spacer(Modifier.height(16.dp))
+            result.people.forEach { person ->
+                val label = if (person.appearanceCount == 1) "appearance" else "appearances"
+                Text(
+                    text = "Person ${person.id}  •  ${person.appearanceCount} $label",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
+                )
+                Spacer(Modifier.height(6.dp))
+            }
+            if (result.unassignedTracklets.isNotEmpty()) {
+                val trackLabel = if (result.unassignedTracklets.size == 1) {
+                    "low-quality face track was not guessed."
+                } else {
+                    "low-quality face tracks were not guessed."
+                }
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = "${result.unassignedTracklets.size} $trackLabel",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
             Spacer(Modifier.height(6.dp))
             Text(
-                text = "${trackingSummary.generatedEmbeddings} on-device embeddings • " +
-                    "${trackingSummary.trackletsWithEmbeddings} tracklets with identity evidence",
+                text = "${trackingSummary.generatedEmbeddings} embeddings • " +
+                    "similarity threshold ${"%.2f".format(result.similarityThreshold)}",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(Modifier.height(6.dp))
-            Text(
-                text = "${trackingSummary.sceneBoundaries} scene boundaries • " +
-                    "${trackingSummary.totalTracklets} temporal tracklets • " +
-                    "${trackingSummary.singleFrameTracklets} $singleFrameTrackletLabel. " +
-                    "Identity clustering comes next.",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall,
             )
             Spacer(Modifier.height(20.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {

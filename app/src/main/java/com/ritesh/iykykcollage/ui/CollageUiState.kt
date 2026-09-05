@@ -1,6 +1,7 @@
 package com.ritesh.iykykcollage.ui
 
 import com.ritesh.iykykcollage.face.FaceDetectionSummary
+import com.ritesh.iykykcollage.identity.AppearanceCountingResult
 import com.ritesh.iykykcollage.model.SelectedVideo
 import com.ritesh.iykykcollage.tracking.FaceTrackletResult
 import com.ritesh.iykykcollage.video.VideoMetadata
@@ -18,13 +19,14 @@ sealed interface CollageUiState {
         val progress: Float,
     ) : CollageUiState
 
-    data class EmbeddingsGenerated(
+    data class PeopleCounted(
         val video: SelectedVideo,
         val metadata: VideoMetadata,
         val requestedFrames: Int,
         val decodedFrames: Int,
         val faceSummary: FaceDetectionSummary,
         val trackletResult: FaceTrackletResult,
+        val appearanceResult: AppearanceCountingResult,
     ) : CollageUiState
 
     data class Failure(

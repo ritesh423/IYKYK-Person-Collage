@@ -29,6 +29,7 @@ data class IdentifiedPerson(
 data class AppearanceCountingResult(
     val people: List<IdentifiedPerson>,
     val unassignedTracklets: List<FaceTracklet>,
+    val similarityThreshold: Float,
 ) {
     val uniquePersonCount: Int get() = people.size
     val totalAppearanceCount: Int get() = people.sumOf { it.appearanceCount }

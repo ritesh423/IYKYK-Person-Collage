@@ -5,22 +5,30 @@ import androidx.lifecycle.viewModelScope
 import com.ritesh.iykykcollage.face.FaceAnalyzer
 import com.ritesh.iykykcollage.face.FaceDetectionAccumulator
 import com.ritesh.iykykcollage.face.FaceEmbedder
+import com.ritesh.iykykcollage.identity.FaceAppearanceCounter
+import com.ritesh.iykykcollage.identity.FaceIdentityClusterer
 import com.ritesh.iykykcollage.model.SelectedVideo
 import com.ritesh.iykykcollage.tracking.FaceTrackletTracker
 import com.ritesh.iykykcollage.tracking.SceneBoundaryDetector
 import com.ritesh.iykykcollage.video.VideoFrameSampler
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class CollageViewModel(
     private val frameSampler: VideoFrameSampler,
     private val faceAnalyzer: FaceAnalyzer,
     private val faceEmbedder: FaceEmbedder,
     private val sceneBoundaryDetector: SceneBoundaryDetector,
+    private val identityClusterer: FaceIdentityClusterer,
+    private val appearanceCounter: FaceAppearanceCounter,
+    private val processingDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow<CollageUiState>(CollageUiState.AwaitingVideo)
     val uiState: StateFlow<CollageUiState> = _uiState.asStateFlow()
@@ -44,7 +52,7 @@ class CollageViewModel(
     fun onAnalyzeVideo() {
         val video = when (val state = _uiState.value) {
             is CollageUiState.VideoReady -> state.video
-            is CollageUiState.EmbeddingsGenerated -> state.video
+            is CollageUiState.PeopleCounted -> state.video
             else -> return
         }
 
@@ -86,13 +94,24 @@ class CollageViewModel(
                 )
 
                 val trackletResult = trackletTracker.finish()
-                _uiState.value = CollageUiState.EmbeddingsGenerated(
+                _uiState.value = CollageUiState.Processing(
+                    video = video,
+                    stage = "Grouping appearances by person",
+                    progress = 1f,
+                )
+                val appearanceResult = withContext(processingDispatcher) {
+                    appearanceCounter.count(
+                        identityClusterer.cluster(trackletResult.tracklets),
+                    )
+                }
+                _uiState.value = CollageUiState.PeopleCounted(
                     video = video,
                     metadata = result.metadata,
                     requestedFrames = result.requestedFrames,
                     decodedFrames = result.decodedFrames,
                     faceSummary = faceAccumulator.snapshot(),
                     trackletResult = trackletResult,
+                    appearanceResult = appearanceResult,
                 )
             } catch (error: CancellationException) {
                 throw error
