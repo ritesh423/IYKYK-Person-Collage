@@ -1,5 +1,6 @@
 package com.ritesh.iykykcollage.ui
 
+import com.ritesh.iykykcollage.collage.GeneratedCollage
 import com.ritesh.iykykcollage.face.FaceDetectionSummary
 import com.ritesh.iykykcollage.identity.AppearanceCountingResult
 import com.ritesh.iykykcollage.identity.RepresentativeSelectionResult
@@ -29,6 +30,7 @@ sealed interface CollageUiState {
         val trackletResult: FaceTrackletResult,
         val appearanceResult: AppearanceCountingResult,
         val representativeResult: RepresentativeSelectionResult,
+        val collage: GeneratedCollage?,
     ) : CollageUiState
 
     data class Failure(

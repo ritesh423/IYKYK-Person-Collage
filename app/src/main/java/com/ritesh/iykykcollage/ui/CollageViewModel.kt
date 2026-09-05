@@ -2,6 +2,7 @@ package com.ritesh.iykykcollage.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ritesh.iykykcollage.collage.CollageGenerator
 import com.ritesh.iykykcollage.face.FaceAnalyzer
 import com.ritesh.iykykcollage.face.FaceDetectionAccumulator
 import com.ritesh.iykykcollage.face.FaceEmbedder
@@ -30,6 +31,7 @@ class CollageViewModel(
     private val identityClusterer: FaceIdentityClusterer,
     private val appearanceCounter: FaceAppearanceCounter,
     private val representativeFaceSelector: RepresentativeFaceSelector,
+    private val collageGenerator: CollageGenerator,
     private val processingDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow<CollageUiState>(CollageUiState.AwaitingVideo)
@@ -38,17 +40,19 @@ class CollageViewModel(
 
     fun onVideoSelected(uri: String, displayName: String) {
         processingJob?.cancel()
-        _uiState.value = CollageUiState.VideoReady(
-            SelectedVideo(
-                uri = uri,
-                displayName = displayName,
+        replaceState(
+            CollageUiState.VideoReady(
+                SelectedVideo(
+                    uri = uri,
+                    displayName = displayName,
+                ),
             ),
         )
     }
 
     fun onSelectionCleared() {
         processingJob?.cancel()
-        _uiState.value = CollageUiState.AwaitingVideo
+        replaceState(CollageUiState.AwaitingVideo)
     }
 
     fun onAnalyzeVideo() {
@@ -60,10 +64,12 @@ class CollageViewModel(
 
         processingJob?.cancel()
         processingJob = viewModelScope.launch {
-            _uiState.value = CollageUiState.Processing(
-                video = video,
-                stage = "Reading video metadata",
-                progress = 0f,
+            replaceState(
+                CollageUiState.Processing(
+                    video = video,
+                    stage = "Reading video metadata",
+                    progress = 0f,
+                ),
             )
 
             try {
@@ -107,6 +113,20 @@ class CollageViewModel(
                     )
                 }
                 val representativeResult = representativeFaceSelector.select(appearanceResult)
+                _uiState.value = CollageUiState.Processing(
+                    video = video,
+                    stage = "Creating your collage",
+                    progress = 1f,
+                )
+                val collage = if (representativeResult.selectedCount > 0) {
+                    collageGenerator.generate(
+                        videoUri = video.uri,
+                        representatives = representativeResult,
+                        appearances = appearanceResult,
+                    )
+                } else {
+                    null
+                }
                 _uiState.value = CollageUiState.PeopleCounted(
                     video = video,
                     metadata = result.metadata,
@@ -116,6 +136,7 @@ class CollageViewModel(
                     trackletResult = trackletResult,
                     appearanceResult = appearanceResult,
                     representativeResult = representativeResult,
+                    collage = collage,
                 )
             } catch (error: CancellationException) {
                 throw error
@@ -135,6 +156,7 @@ class CollageViewModel(
     }
 
     override fun onCleared() {
+        recycleCollage(_uiState.value)
         val activeJob = processingJob
         activeJob?.cancel()
         if (activeJob == null || activeJob.isCompleted) {
@@ -151,5 +173,16 @@ class CollageViewModel(
         } finally {
             faceEmbedder.close()
         }
+    }
+
+    private fun replaceState(state: CollageUiState) {
+        val previousState = _uiState.value
+        _uiState.value = state
+        recycleCollage(previousState)
+    }
+
+    private fun recycleCollage(state: CollageUiState) {
+        val bitmap = (state as? CollageUiState.PeopleCounted)?.collage?.bitmap ?: return
+        if (!bitmap.isRecycled) bitmap.recycle()
     }
 }

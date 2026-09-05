@@ -3,6 +3,7 @@ package com.ritesh.iykykcollage.ui
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import com.ritesh.iykykcollage.collage.AndroidCollageGenerator
 import com.ritesh.iykykcollage.face.LiteRtFaceEmbedder
 import com.ritesh.iykykcollage.face.MlKitFaceAnalyzer
 import com.ritesh.iykykcollage.identity.FaceAppearanceCounter
@@ -27,6 +28,7 @@ class CollageViewModelFactory(
                 identityClusterer = FaceIdentityClusterer(),
                 appearanceCounter = FaceAppearanceCounter(),
                 representativeFaceSelector = RepresentativeFaceSelector(),
+                collageGenerator = AndroidCollageGenerator(appContext),
             ) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
