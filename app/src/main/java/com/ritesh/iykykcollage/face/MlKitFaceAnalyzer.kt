@@ -5,6 +5,7 @@ import com.google.mlkit.vision.face.Face
 import com.google.mlkit.vision.face.FaceDetection
 import com.google.mlkit.vision.face.FaceDetector
 import com.google.mlkit.vision.face.FaceDetectorOptions
+import com.google.mlkit.vision.face.FaceLandmark
 import com.ritesh.iykykcollage.video.SampledVideoFrame
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
@@ -20,7 +21,7 @@ class MlKitFaceAnalyzer(
     private val detectorMutex = Mutex()
 
     override suspend fun analyze(frame: SampledVideoFrame): FrameFaceDetection {
-        val normalizedRotation = frame.rotationDegrees.normalizedImageRotation()
+        val normalizedRotation = frame.rotationDegrees.normalizedRightAngleRotation()
         val image = InputImage.fromBitmap(frame.bitmap, normalizedRotation)
 
         return try {
@@ -102,6 +103,12 @@ class MlKitFaceAnalyzer(
             rightEyeOpenProbability = rightEyeOpenProbability,
             smilingProbability = smilingProbability,
             quality = quality,
+            leftEyePosition = getLandmark(FaceLandmark.LEFT_EYE)?.position?.let { point ->
+                FacePoint(x = point.x, y = point.y)
+            },
+            rightEyePosition = getLandmark(FaceLandmark.RIGHT_EYE)?.position?.let { point ->
+                FacePoint(x = point.x, y = point.y)
+            },
         )
     }
 
@@ -114,14 +121,5 @@ class MlKitFaceAnalyzer(
             .setMinFaceSize(0.08f)
             .enableTracking()
             .build()
-    }
-}
-
-private fun Int.normalizedImageRotation(): Int {
-    val normalized = ((this % 360) + 360) % 360
-    return if (normalized == 0 || normalized == 90 || normalized == 180 || normalized == 270) {
-        normalized
-    } else {
-        0
     }
 }

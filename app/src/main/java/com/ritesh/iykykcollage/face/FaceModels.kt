@@ -11,6 +11,11 @@ data class FaceBounds(
     val area: Long get() = width.toLong() * height
 }
 
+data class FacePoint(
+    val x: Float,
+    val y: Float,
+)
+
 enum class FaceQualityIssue {
     TOO_SMALL_FOR_MATCHING,
     TOO_SMALL_FOR_REPRESENTATIVE,
@@ -41,6 +46,9 @@ data class FaceObservation(
     val rightEyeOpenProbability: Float?,
     val smilingProbability: Float?,
     val quality: FaceQualityAssessment,
+    val leftEyePosition: FacePoint? = null,
+    val rightEyePosition: FacePoint? = null,
+    val embedding: FaceEmbedding? = null,
 )
 
 data class FrameFaceDetection(

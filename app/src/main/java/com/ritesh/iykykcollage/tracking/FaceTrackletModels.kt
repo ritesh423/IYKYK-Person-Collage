@@ -17,6 +17,7 @@ data class FaceTracklet(
     val matchingCandidateCount: Int get() = observations.count { it.quality.usableForMatching }
     val representativeCandidateCount: Int
         get() = observations.count { it.quality.eligibleAsRepresentative }
+    val embeddingCount: Int get() = observations.count { it.embedding != null }
     val sourceTrackingIds: Set<Int>
         get() = observations.mapNotNullTo(linkedSetOf()) { it.trackingId }
 }
@@ -28,6 +29,8 @@ data class FaceTrackletSummary(
     val trackedObservations: Int,
     val sceneBoundaries: Int,
     val longestTrackletObservations: Int,
+    val generatedEmbeddings: Int,
+    val trackletsWithEmbeddings: Int,
 )
 
 data class FaceTrackletResult(
@@ -42,5 +45,7 @@ data class FaceTrackletResult(
             trackedObservations = tracklets.sumOf { it.observations.size },
             sceneBoundaries = sceneBoundaryCount,
             longestTrackletObservations = tracklets.maxOfOrNull { it.observations.size } ?: 0,
+            generatedEmbeddings = tracklets.sumOf { it.embeddingCount },
+            trackletsWithEmbeddings = tracklets.count { it.embeddingCount > 0 },
         )
 }
