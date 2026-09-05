@@ -14,3 +14,11 @@ local-test-media/
 
 # Personal interview-preparation notes stay local and are not part of the submission.
 docs/LEARNING_NOTES.md
+
+# Local agent skills are development aids, not application source.
+.agents/
+skills-lock.json
+
+# Automated validation stays local and is not included in the submission repository.
+app/src/test/
+app/src/androidTest/
