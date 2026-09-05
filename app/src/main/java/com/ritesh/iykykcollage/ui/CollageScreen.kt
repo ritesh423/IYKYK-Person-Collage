@@ -46,6 +46,8 @@ fun CollageScreen(
     onClearSelection: () -> Unit,
     onAnalyzeVideo: () -> Unit,
     onCancelProcessing: () -> Unit,
+    onSaveCollage: () -> Unit,
+    onShareCollage: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Box(
@@ -105,6 +107,8 @@ fun CollageScreen(
                         state = uiState,
                         onAnalyzeVideo = onAnalyzeVideo,
                         onChooseVideo = onChooseVideo,
+                        onSaveCollage = onSaveCollage,
+                        onShareCollage = onShareCollage,
                     )
                     is CollageUiState.Failure -> FailureCard(uiState, onChooseVideo)
                 }
@@ -272,6 +276,8 @@ private fun PeopleCountedCard(
     state: CollageUiState.PeopleCounted,
     onAnalyzeVideo: () -> Unit,
     onChooseVideo: () -> Unit,
+    onSaveCollage: () -> Unit,
+    onShareCollage: () -> Unit,
 ) {
     val trackingSummary = state.trackletResult.summary
     val result = state.appearanceResult
@@ -351,6 +357,23 @@ private fun PeopleCountedCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodySmall,
             )
+            if (state.collage?.bitmap?.isRecycled == false) {
+                Spacer(Modifier.height(20.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedButton(
+                        onClick = onSaveCollage,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text("Save")
+                    }
+                    Button(
+                        onClick = onShareCollage,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text("Share")
+                    }
+                }
+            }
             Spacer(Modifier.height(20.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedButton(

@@ -4,9 +4,9 @@ An offline Android app that turns a portrait video into a shareable collage with
 
 ## Status
 
-The project is being built as a sequence of verified vertical slices. The current pipeline detects and tracks faces, creates normalized MobileFaceNet embeddings entirely on-device, groups matching tracklets into anonymous identities, and reports identity-aware appearance counts. Full video frames and temporary face crops are released during streaming so analysis remains memory-safe.
+The complete pipeline detects and tracks faces, creates normalized MobileFaceNet embeddings entirely on-device, groups matching tracklets into anonymous identities, counts separate appearances, selects one quality-ranked portrait per person, and renders a saveable and shareable collage. Full video frames and temporary face crops are released during streaming so analysis remains memory-safe.
 
-## Planned on-device pipeline
+## On-device pipeline
 
 ```text
 Selected video
@@ -17,10 +17,20 @@ Selected video
   -> constrained identity clustering
   -> identity-aware appearance merging and counting
   -> representative-shot scoring
-  -> collage rendering, saving, and sharing
+  -> collage rendering
+  -> user-controlled save or Android share sheet
 ```
 
 No video or face data is uploaded.
+
+## Use the app
+
+1. Tap **Choose video** and select a portrait video from Android's Photo Picker.
+2. Tap **Analyze video** and keep the app open while the on-device stages complete.
+3. Review the unique-person count, each person's appearance count, and the generated collage.
+4. Tap **Save** to choose a destination for a lossless PNG, or **Share** to open Android's standard share sheet.
+
+The app requests no network or broad storage permission. Saving uses Android's system document picker, while sharing exposes only a temporary cached PNG through a read-only content URI.
 
 ### Milestone 2 validation
 
@@ -154,6 +164,12 @@ After appearance counting, the app selects one representative observation for ev
 
 Candidates receive a weighted score from face-crop sharpness (30%), frontality (25%), open eyes (20%), complete frame visibility (15%), and smile probability (10%). Sharpness is measured on the aligned `112 × 112` face while that temporary crop is already available for embedding; only the numeric score is retained. The selected observation keeps its source timestamp and bounds, allowing the collage stage to decode only the chosen frames instead of holding video bitmaps in memory.
 
+## Collage output
+
+Only the representative timestamps are decoded again after analysis. Each selected face is mapped from analysis coordinates to its upright source frame, expanded into a square portrait, and placed in a two-column 1080 px collage. An odd final portrait is centered. Every card includes its anonymous person number and appearance count, and the header records the overall count.
+
+The preview uses the same bitmap that is exported, so the saved or shared result matches what the user reviewed. Save writes PNG data to a document URI selected by the user. Share writes one temporary PNG under the app cache and grants the chosen receiving app read access through Android `FileProvider`; the original video, embeddings, and identity data are never shared.
+
 ## Build
 
 Prerequisites:
@@ -168,4 +184,4 @@ Run the checks from the repository root:
 ./gradlew testDebugUnitTest assembleDebug lintDebug
 ```
 
-Collage rendering, saving, sharing, and final output validation will be added in the remaining milestone.
+The debug APK is generated at `app/build/outputs/apk/debug/app-debug.apk`.
