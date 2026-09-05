@@ -5,7 +5,7 @@ import kotlin.math.abs
 data class FaceQualityPolicy(
     val minimumMatchingEdgePx: Int = 80,
     val minimumRepresentativeEdgePx: Int = 120,
-    val minimumVisibleFraction: Float = 0.85f,
+    val minimumVisibleFraction: Float = 0.60f,
     val frameEdgeMarginFraction: Float = 0.01f,
     val maximumMatchingPitchDegrees: Float = 35f,
     val maximumMatchingYawDegrees: Float = 45f,

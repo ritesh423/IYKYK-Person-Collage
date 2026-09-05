@@ -70,7 +70,12 @@ class FaceTrackletTracker(
             completeExpiredTracklets(frame.timestampUs)
         }
 
-        val associations = buildAssociations(frame)
+        val observations = frame.faces.filterIndexed { index, candidate ->
+            frame.faces.take(index).none { previous ->
+                previous.bounds.intersectionOverUnion(candidate.bounds) >= DUPLICATE_FACE_IOU
+            }
+        }
+        val associations = buildAssociations(frame.copy(faces = observations))
         val assignedTrackletIds = mutableSetOf<Int>()
         val assignedObservationIndexes = mutableSetOf<Int>()
 
@@ -79,13 +84,13 @@ class FaceTrackletTracker(
                 association.tracklet.id !in assignedTrackletIds &&
                 association.observationIndex !in assignedObservationIndexes
             ) {
-                association.tracklet.observations += frame.faces[association.observationIndex]
+                association.tracklet.observations += observations[association.observationIndex]
                 assignedTrackletIds += association.tracklet.id
                 assignedObservationIndexes += association.observationIndex
             }
         }
 
-        frame.faces.forEachIndexed { index, observation ->
+        observations.forEachIndexed { index, observation ->
             if (index !in assignedObservationIndexes) {
                 activeTracklets += MutableTracklet(
                     id = nextTrackletId++,
@@ -174,6 +179,10 @@ class FaceTrackletTracker(
             intersectionOverUnion * 3f +
             (1f / (1f + centerDistance)) * 2f +
             sizeRatio
+    }
+
+    private companion object {
+        const val DUPLICATE_FACE_IOU = 0.50f
     }
 }
 

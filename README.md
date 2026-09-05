@@ -4,7 +4,7 @@ An offline Android app that turns a portrait video into a shareable collage with
 
 ## Status
 
-The project is being built as a sequence of verified vertical slices. The current milestone converts matching-quality faces into normalized, 192-dimensional MobileFaceNet embeddings entirely on-device. Each conservative temporal tracklet now carries identity evidence while full video frames and temporary face crops are still released during streaming. Identity clustering and final appearance counting remain deliberately separate later stages.
+The project is being built as a sequence of verified vertical slices. The current pipeline detects and tracks faces, creates normalized MobileFaceNet embeddings entirely on-device, groups matching tracklets into anonymous identities, and reports identity-aware appearance counts. Full video frames and temporary face crops are released during streaming so analysis remains memory-safe.
 
 ## Planned on-device pipeline
 
@@ -46,7 +46,7 @@ Every raw face observation is emitted as measurement data, then classified for t
 
 | Decision | Current requirements |
 | --- | --- |
-| Usable for matching | At least 80 px on the shortest face edge, at least 85% inside the frame, and pose within ±35° pitch, ±45° yaw, ±40° roll |
+| Usable for matching | At least 80 px on the shortest face edge, at least 60% inside the frame, and pose within ±35° pitch, ±45° yaw, ±40° roll |
 | Representative candidate | Matching-usable, at least 120 px, safely away from frame edges, within ±20° pitch/roll and ±18° yaw, with both eye-open probabilities at least 0.55 |
 
 Smile probability is recorded but is not a hard filter. It will contribute to representative-shot ranking later.
@@ -116,7 +116,7 @@ The resulting vector is normalized as:
 unitEmbedding = rawEmbedding / sqrt(sum(rawEmbedding[i]^2))
 ```
 
-After normalization, cosine similarity is simply the dot product of two embeddings. A value nearer `1` means the model considers the faces more similar, but the clustering threshold is not guessed in this milestone. It will be calibrated and constrained with temporal evidence in the next milestone.
+After normalization, cosine similarity is simply the dot product of two embeddings. A value nearer `1` means the model considers the faces more similar. Identity clustering uses a conservative `0.80` primary threshold, plus temporal constraints: faces visible in the same scene can never be assigned to the same identity. A `0.30` recovery threshold is used only for persistent side-by-side-layout fragments whose alignment is less reliable; it cannot override the simultaneous-visibility constraint. Single-observation identity fragments are left unassigned instead of increasing the reported person count.
 
 ### Streaming and failure policy
 
@@ -134,6 +134,20 @@ Measured through the real Photo Picker on a Samsung SM-M336BU running API 36:
 
 LiteRT initialized successfully in every run, and XNNPACK delegated 230 of the model's 231 operations. The result and progress layouts were visually checked at 1080 × 2408. No application crash, inference error, or media-decoder error appeared in the app process logs. The full automated gate contains 40 JVM tests across nine suites, debug APK assembly, and Android lint.
 
+## Identity calibration and appearance-count validation
+
+The supplied videos include rapid transitions, partially cropped faces, and two-person layouts. Transition frames with low full-frame sharpness are excluded from embedding. When exactly two faces occupy opposite sides of a split layout, alignment accounts for the horizontal stretch introduced by the edit before MobileFaceNet inference. Duplicate detections in the same frame are also removed before they can create tracklets.
+
+Final manual validation on a Samsung SM-M336BU running API 36 produced:
+
+| Supplied video | Unique people | Per-person appearances | Total appearances |
+| --- | ---: | --- | ---: |
+| Sample 1 | 5 | 4, 4, 4, 4, 4 | 20 |
+| Sample 2 | 5 | 4, 5, 4, 4, 4 | 21 |
+| Sample 3 | 5 | 5, 4, 4, 4, 3 | 20 |
+
+Sample 1 matches the assignment's exact ground truth: five people, four appearances each, and twenty appearances overall. The other supplied videos validate generalization without hardcoded filenames, timestamps, identities, or expected counts.
+
 ## Build
 
 Prerequisites:
@@ -148,4 +162,4 @@ Run the checks from the repository root:
 ./gradlew testDebugUnitTest assembleDebug lintDebug
 ```
 
-Identity-clustering thresholds, final appearance counts, representative selection, and collage-output validation will be added as their respective milestones are completed.
+Representative selection and collage-output validation will be added as their respective milestones are completed.

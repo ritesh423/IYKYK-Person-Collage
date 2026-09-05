@@ -27,6 +27,7 @@ class LiteRtFaceEmbedder(
         .order(ByteOrder.nativeOrder())
     private val inputPixels = IntArray(INPUT_WIDTH * INPUT_HEIGHT)
     private val outputBuffer = Array(1) { FloatArray(EMBEDDING_DIMENSION) }
+    private var framePixels = IntArray(0)
     private var interpreter: Interpreter? = null
     private var closed = false
 
@@ -38,14 +39,30 @@ class LiteRtFaceEmbedder(
             inferenceLock.withLock {
                 check(!closed) { "Face embedder has already been closed" }
                 val runtime = interpreter ?: createInterpreter().also { interpreter = it }
+                val correctSideBySideCompression = detection.looksLikeSideBySideLayout()
+                val frameIsSharpEnough =
+                    frame.bitmap.sharpnessScore() >= MINIMUM_FRAME_LAPLACIAN_VARIANCE
                 detection.copy(
                     faces = detection.faces.map { face ->
-                        if (!face.quality.usableForMatching) {
+                        val usableSideBySideFace = correctSideBySideCompression &&
+                            FaceQualityIssue.TOO_SMALL_FOR_MATCHING !in face.quality.issues &&
+                            FaceQualityIssue.EXTREME_POSE !in face.quality.issues
+                        if (
+                            (!face.quality.usableForMatching && !usableSideBySideFace) ||
+                            !frameIsSharpEnough
+                        ) {
                             face
                         } else {
-                            val alignedFace = cropper.crop(frame, face)
+                            val alignedFace = cropper.crop(
+                                frame = frame,
+                                face = face,
+                                correctSideBySideCompression = correctSideBySideCompression,
+                            )
                             try {
-                                face.copy(embedding = runtime.embeddingFor(alignedFace))
+                                face.copy(
+                                    embedding = runtime.embeddingFor(alignedFace),
+                                    fromSideBySideLayout = correctSideBySideCompression,
+                                )
                             } finally {
                                 if (!alignedFace.isRecycled) alignedFace.recycle()
                             }
@@ -131,6 +148,33 @@ class LiteRtFaceEmbedder(
         return FaceEmbedding.from(outputBuffer[0])
     }
 
+    private fun Bitmap.sharpnessScore(): Double {
+        val requiredSize = width * height
+        if (framePixels.size < requiredSize) framePixels = IntArray(requiredSize)
+        getPixels(framePixels, 0, width, 0, 0, width, height)
+
+        var sampleCount = 0L
+        var sum = 0L
+        var squaredSum = 0L
+        for (y in 1 until height - 1 step SHARPNESS_SAMPLE_STRIDE) {
+            for (x in 1 until width - 1 step SHARPNESS_SAMPLE_STRIDE) {
+                val center = framePixels[y * width + x].luminance()
+                val laplacian =
+                    framePixels[(y - 1) * width + x].luminance() +
+                        framePixels[(y + 1) * width + x].luminance() +
+                        framePixels[y * width + x - 1].luminance() +
+                        framePixels[y * width + x + 1].luminance() -
+                        4 * center
+                sampleCount += 1
+                sum += laplacian
+                squaredSum += laplacian.toLong() * laplacian
+            }
+        }
+        if (sampleCount == 0L) return 0.0
+        val mean = sum.toDouble() / sampleCount
+        return squaredSum.toDouble() / sampleCount - mean * mean
+    }
+
     private fun Interpreter.requireExpectedTensorContract() {
         val input = getInputTensor(0)
         val output = getOutputTensor(0)
@@ -157,5 +201,26 @@ class LiteRtFaceEmbedder(
         private const val RGB_CHANNELS = 3
         private const val INPUT_FLOAT_COUNT = INPUT_WIDTH * INPUT_HEIGHT * RGB_CHANNELS
         private const val INFERENCE_THREADS = 4
+        private const val SHARPNESS_SAMPLE_STRIDE = 4
+        private const val MINIMUM_FRAME_LAPLACIAN_VARIANCE = 3.0
     }
+}
+
+private fun Int.luminance(): Int {
+    val red = (this ushr 16) and 0xff
+    val green = (this ushr 8) and 0xff
+    val blue = this and 0xff
+    return (77 * red + 150 * green + 29 * blue) ushr 8
+}
+
+private fun FrameFaceDetection.looksLikeSideBySideLayout(): Boolean {
+    if (faces.size != 2) return false
+    val ordered = faces.sortedBy { (it.bounds.left + it.bounds.right) / 2f }
+    val middle = ordered.first().frameWidth / 2f
+    val leftCenter = (ordered[0].bounds.left + ordered[0].bounds.right) / 2f
+    val rightCenter = (ordered[1].bounds.left + ordered[1].bounds.right) / 2f
+    val reachesBothEdges =
+        ordered[0].bounds.left <= ordered[0].frameWidth * 0.12f &&
+            ordered[1].bounds.right >= ordered[1].frameWidth * 0.88f
+    return leftCenter < middle && rightCenter > middle && reachesBothEdges
 }

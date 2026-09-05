@@ -22,7 +22,7 @@ class FaceAppearanceCounter(
         }
         return AppearanceCountingResult(
             people = people,
-            unassignedTracklets = clustering.trackletsWithoutEmbeddings,
+            unassignedTracklets = clustering.unassignedTracklets,
             similarityThreshold = clustering.similarityThreshold,
         )
     }

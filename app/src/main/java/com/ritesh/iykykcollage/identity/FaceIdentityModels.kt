@@ -17,7 +17,7 @@ data class FaceIdentity(
 
 data class IdentityClusteringResult(
     val identities: List<FaceIdentity>,
-    val trackletsWithoutEmbeddings: List<FaceTracklet>,
+    val unassignedTracklets: List<FaceTracklet>,
     val similarityThreshold: Float,
 ) {
     val identifiedTrackletCount: Int get() = identities.sumOf { it.tracklets.size }
