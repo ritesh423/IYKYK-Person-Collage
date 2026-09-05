@@ -18,7 +18,7 @@ sealed interface CollageUiState {
         val progress: Float,
     ) : CollageUiState
 
-    data class TrackletsBuilt(
+    data class EmbeddingsGenerated(
         val video: SelectedVideo,
         val metadata: VideoMetadata,
         val requestedFrames: Int,

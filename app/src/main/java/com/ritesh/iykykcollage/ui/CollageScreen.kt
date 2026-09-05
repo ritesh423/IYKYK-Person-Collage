@@ -91,7 +91,7 @@ fun CollageScreen(
                         state = uiState,
                         onCancelProcessing = onCancelProcessing,
                     )
-                    is CollageUiState.TrackletsBuilt -> TrackletsBuiltCard(
+                    is CollageUiState.EmbeddingsGenerated -> EmbeddingsGeneratedCard(
                         state = uiState,
                         onAnalyzeVideo = onAnalyzeVideo,
                         onChooseVideo = onChooseVideo,
@@ -257,8 +257,8 @@ private fun ProcessingCard(
 }
 
 @Composable
-private fun TrackletsBuiltCard(
-    state: CollageUiState.TrackletsBuilt,
+private fun EmbeddingsGeneratedCard(
+    state: CollageUiState.EmbeddingsGenerated,
     onAnalyzeVideo: () -> Unit,
     onChooseVideo: () -> Unit,
 ) {
@@ -275,7 +275,7 @@ private fun TrackletsBuiltCard(
     ) {
         Column(Modifier.padding(24.dp)) {
             Text(
-                text = "Face tracking complete",
+                text = "Face embeddings complete",
                 color = MaterialTheme.colorScheme.primary,
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,
@@ -295,15 +295,16 @@ private fun TrackletsBuiltCard(
             )
             Spacer(Modifier.height(6.dp))
             Text(
-                text = "${trackingSummary.totalTracklets} temporal face tracklets • " +
-                    "${trackingSummary.trackletsWithMatchingCandidates} with preferred matching frames",
+                text = "${trackingSummary.generatedEmbeddings} on-device embeddings • " +
+                    "${trackingSummary.trackletsWithEmbeddings} tracklets with identity evidence",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(6.dp))
             Text(
                 text = "${trackingSummary.sceneBoundaries} scene boundaries • " +
+                    "${trackingSummary.totalTracklets} temporal tracklets • " +
                     "${trackingSummary.singleFrameTracklets} $singleFrameTrackletLabel. " +
-                    "Face embeddings come next.",
+                    "Identity clustering comes next.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(20.dp))
@@ -312,7 +313,7 @@ private fun TrackletsBuiltCard(
                     onClick = onChooseVideo,
                     modifier = Modifier.weight(1f),
                 ) {
-                    Text("Choose another")
+                    Text("New video")
                 }
                 Button(
                     onClick = onAnalyzeVideo,

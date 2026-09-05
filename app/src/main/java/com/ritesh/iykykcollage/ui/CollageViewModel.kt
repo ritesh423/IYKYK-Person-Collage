@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ritesh.iykykcollage.face.FaceAnalyzer
 import com.ritesh.iykykcollage.face.FaceDetectionAccumulator
+import com.ritesh.iykykcollage.face.FaceEmbedder
 import com.ritesh.iykykcollage.model.SelectedVideo
 import com.ritesh.iykykcollage.tracking.FaceTrackletTracker
 import com.ritesh.iykykcollage.tracking.SceneBoundaryDetector
@@ -18,6 +19,7 @@ import kotlinx.coroutines.launch
 class CollageViewModel(
     private val frameSampler: VideoFrameSampler,
     private val faceAnalyzer: FaceAnalyzer,
+    private val faceEmbedder: FaceEmbedder,
     private val sceneBoundaryDetector: SceneBoundaryDetector,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow<CollageUiState>(CollageUiState.AwaitingVideo)
@@ -42,7 +44,7 @@ class CollageViewModel(
     fun onAnalyzeVideo() {
         val video = when (val state = _uiState.value) {
             is CollageUiState.VideoReady -> state.video
-            is CollageUiState.TrackletsBuilt -> state.video
+            is CollageUiState.EmbeddingsGenerated -> state.video
             else -> return
         }
 
@@ -64,22 +66,27 @@ class CollageViewModel(
                         val sceneChange = sceneBoundaryDetector.analyze(frame)
                         val detection = faceAnalyzer.analyze(frame)
                         faceAccumulator.add(detection)
+                        val embeddedDetection = if (sceneChange.isSceneBoundary) {
+                            detection
+                        } else {
+                            faceEmbedder.embed(frame, detection)
+                        }
                         trackletTracker.add(
-                            frame = detection,
+                            frame = embeddedDetection,
                             isSceneTransitionFrame = sceneChange.isSceneBoundary,
                         )
                     },
                     onProgress = { progress ->
                         _uiState.value = CollageUiState.Processing(
                             video = video,
-                            stage = "Building face tracklets • frame ${progress.processedFrames} of ${progress.totalFrames}",
+                            stage = "Generating face embeddings • frame ${progress.processedFrames} of ${progress.totalFrames}",
                             progress = progress.fraction,
                         )
                     },
                 )
 
                 val trackletResult = trackletTracker.finish()
-                _uiState.value = CollageUiState.TrackletsBuilt(
+                _uiState.value = CollageUiState.EmbeddingsGenerated(
                     video = video,
                     metadata = result.metadata,
                     requestedFrames = result.requestedFrames,
@@ -108,10 +115,18 @@ class CollageViewModel(
         val activeJob = processingJob
         activeJob?.cancel()
         if (activeJob == null || activeJob.isCompleted) {
-            faceAnalyzer.close()
+            closeVisionProcessors()
         } else {
-            activeJob.invokeOnCompletion { faceAnalyzer.close() }
+            activeJob.invokeOnCompletion { closeVisionProcessors() }
         }
         super.onCleared()
+    }
+
+    private fun closeVisionProcessors() {
+        try {
+            faceAnalyzer.close()
+        } finally {
+            faceEmbedder.close()
+        }
     }
 }

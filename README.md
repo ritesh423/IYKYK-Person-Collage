@@ -4,7 +4,7 @@ An offline Android app that turns a portrait video into a shareable collage with
 
 ## Status
 
-The project is being built as a sequence of verified vertical slices. The current milestone separates hard scene transitions and associates frame-level face detections into conservative temporal tracklets. Tracklets retain timestamps, geometry, ML Kit tracking-ID evidence, and quality measurements without retaining the video bitmaps. They are intentionally provisional until on-device face embeddings can reconnect same-person fragments.
+The project is being built as a sequence of verified vertical slices. The current milestone converts matching-quality faces into normalized, 192-dimensional MobileFaceNet embeddings entirely on-device. Each conservative temporal tracklet now carries identity evidence while full video frames and temporary face crops are still released during streaming. Identity clustering and final appearance counting remain deliberately separate later stages.
 
 ## Planned on-device pipeline
 
@@ -42,7 +42,7 @@ ML Kit detects faces; it does not recognize identities. Cross-appearance identit
 
 ### Quality policy
 
-Every raw face observation is emitted as measurement data, then classified for two different purposes. The current milestone aggregates those observations into validation counts; the next pipeline stage will consume their full per-frame details.
+Every raw face observation is emitted as measurement data, then classified for two different purposes. Only matching-usable, non-transition observations are embedded; all observations remain available for diagnostics, and representative eligibility is kept separate from identity evidence.
 
 | Decision | Current requirements |
 | --- | --- |
@@ -89,6 +89,51 @@ Measured in final runs through the real Photo Picker on an API 36.1 emulator:
 
 All 120 frames were processed in each run and no application crashes occurred. Sample 1's known ground truth of 20 appearances will be asserted after embeddings and identity-aware temporal merging; treating the current 23 conservative tracklets as final appearances would be conceptually incorrect.
 
+## On-device face embeddings
+
+Face detection and face recognition are separate stages. ML Kit locates a face and supplies landmarks; a bundled MobileFaceNet model converts a consistently aligned face crop into a compact numerical descriptor. It does not produce a person's name. Later, the app will compare descriptors to decide whether two tracklets probably show the same anonymous person.
+
+### Runtime and model contract
+
+The app uses the standalone `com.google.ai.edge.litert:litert:1.4.2` runtime with the Interpreter API, four CPU threads, and XNNPACK enabled. CPU inference is a predictable baseline across the assignment's API 26+ device range, and a roughly 5 MB model does not justify adding device-specific GPU or NPU setup before profiling demonstrates a need.
+
+The model is bundled as an uncompressed asset so LiteRT can memory-map it instead of copying the complete binary into a Java heap array. Before the first inference, the app checks the tensor contract rather than assuming an arbitrary `.tflite` file is compatible:
+
+- Input: one float32 tensor shaped `[1, 112, 112, 3]`
+- Output: one float32 tensor shaped `[1, 192]`
+- Input preprocessing: RGB channels mapped from `[0, 255]` to `[-1, 1]`
+- Output postprocessing: L2 normalization to a unit-length vector
+
+The exact model revision, SHA-256 checksum, byte size, licence, and research reference are recorded in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md). A unit test guards the checked binary against an unnoticed replacement.
+
+### Alignment and comparison
+
+ML Kit reports landmarks in the upright image coordinate system. The cropper first brings the sampled bitmap into that same orientation. When both eyes are trustworthy, a two-point similarity transform rotates, scales, and translates the face into a `112 × 112` crop with the eyes at the model's expected locations. ML Kit names eyes from the subject's perspective, so the planner explicitly sorts the two points by image x-coordinate before building the transform. If either eye is missing or their distance is implausibly small, an expanded square around the face bounds provides a deterministic fallback.
+
+The resulting vector is normalized as:
+
+```text
+unitEmbedding = rawEmbedding / sqrt(sum(rawEmbedding[i]^2))
+```
+
+After normalization, cosine similarity is simply the dot product of two embeddings. A value nearer `1` means the model considers the faces more similar, but the clustering threshold is not guessed in this milestone. It will be calibrated and constrained with temporal evidence in the next milestone.
+
+### Streaming and failure policy
+
+Embedding runs inside the sampler callback while its bitmap is valid. A temporary aligned crop is recycled immediately after inference, and the tracklet keeps only the small 192-float descriptor. Unusable faces and high-change transition frames are not embedded because poor inputs add misleading identity evidence. Model loading is lazy, inference is serialized behind a lock, cancellation remains distinct from failure, and both ML Kit and LiteRT are closed with the ViewModel lifecycle.
+
+### Milestone 5 validation
+
+Measured through the real Photo Picker on a Samsung SM-M336BU running API 36:
+
+| Supplied video | Frames processed | Face observations | On-device embeddings | Tracklets with embeddings | Scene boundaries | Temporal tracklets |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Sample 1 | 120 | 129 | 80 | 18 | 17 | 21 |
+| Sample 2 | 120 | 129 | 84 | 18 | 17 | 21 |
+| Sample 3 | 120 | 127 | 82 | 17 | 17 | 22 |
+
+LiteRT initialized successfully in every run, and XNNPACK delegated 230 of the model's 231 operations. The result and progress layouts were visually checked at 1080 × 2408. No application crash, inference error, or media-decoder error appeared in the app process logs. The full automated gate contains 40 JVM tests across nine suites, debug APK assembly, and Android lint.
+
 ## Build
 
 Prerequisites:
@@ -100,7 +145,7 @@ Prerequisites:
 Run the checks from the repository root:
 
 ```bash
-./gradlew testDebugUnitTest assembleDebug
+./gradlew testDebugUnitTest assembleDebug lintDebug
 ```
 
-More details, model attribution, measured thresholds, and sample-video results will be added as their respective milestones are completed.
+Identity-clustering thresholds, final appearance counts, representative selection, and collage-output validation will be added as their respective milestones are completed.

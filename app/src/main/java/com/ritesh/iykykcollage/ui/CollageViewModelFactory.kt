@@ -3,6 +3,7 @@ package com.ritesh.iykykcollage.ui
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import com.ritesh.iykykcollage.face.LiteRtFaceEmbedder
 import com.ritesh.iykykcollage.face.MlKitFaceAnalyzer
 import com.ritesh.iykykcollage.tracking.BitmapSceneBoundaryDetector
 import com.ritesh.iykykcollage.video.AndroidVideoFrameSampler
@@ -18,6 +19,7 @@ class CollageViewModelFactory(
             return CollageViewModel(
                 frameSampler = AndroidVideoFrameSampler(appContext),
                 faceAnalyzer = MlKitFaceAnalyzer(),
+                faceEmbedder = LiteRtFaceEmbedder(appContext),
                 sceneBoundaryDetector = BitmapSceneBoundaryDetector(),
             ) as T
         }
