@@ -24,6 +24,7 @@ class FaceTrackletTracker(
 ) {
     private data class MutableTracklet(
         val id: Int,
+        val sceneIndex: Int,
         val observations: MutableList<FaceObservation>,
     ) {
         val latest: FaceObservation get() = observations.last()
@@ -31,6 +32,7 @@ class FaceTrackletTracker(
         fun snapshot() = FaceTracklet(
             id = id,
             observations = observations.toList(),
+            sceneIndex = sceneIndex,
         )
     }
 
@@ -46,6 +48,7 @@ class FaceTrackletTracker(
     private var lastFrameIndex = -1
     private var lastTimestampUs = -1L
     private var sceneBoundaryCount = 0
+    private var currentSceneIndex = 0
     private var finished = false
 
     fun add(
@@ -59,6 +62,7 @@ class FaceTrackletTracker(
         if (isSceneTransitionFrame) {
             completeAllActiveTracklets()
             sceneBoundaryCount += 1
+            currentSceneIndex += 1
             lastFrameIndex = frame.frameIndex
             lastTimestampUs = frame.timestampUs
             return
@@ -85,6 +89,7 @@ class FaceTrackletTracker(
             if (index !in assignedObservationIndexes) {
                 activeTracklets += MutableTracklet(
                     id = nextTrackletId++,
+                    sceneIndex = currentSceneIndex,
                     observations = mutableListOf(observation),
                 )
             }

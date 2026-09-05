@@ -5,9 +5,11 @@ import com.ritesh.iykykcollage.face.FaceObservation
 data class FaceTracklet(
     val id: Int,
     val observations: List<FaceObservation>,
+    val sceneIndex: Int = 0,
 ) {
     init {
         require(observations.isNotEmpty()) { "A tracklet must contain at least one observation" }
+        require(sceneIndex >= 0) { "Scene index cannot be negative" }
     }
 
     val firstFrameIndex: Int get() = observations.first().frameIndex

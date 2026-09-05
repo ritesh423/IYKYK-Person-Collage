@@ -34,6 +34,22 @@ class FaceEmbedding private constructor(
     override fun toString(): String = "FaceEmbedding(dimension=$dimension)"
 
     companion object {
+        fun meanOf(embeddings: List<FaceEmbedding>): FaceEmbedding {
+            require(embeddings.isNotEmpty()) { "Cannot average an empty embedding list" }
+            val dimension = embeddings.first().dimension
+            require(embeddings.all { it.dimension == dimension }) {
+                "All embeddings must have the same dimension"
+            }
+
+            val mean = FloatArray(dimension)
+            embeddings.forEach { embedding ->
+                mean.indices.forEach { index ->
+                    mean[index] += embedding[index]
+                }
+            }
+            return from(mean)
+        }
+
         fun from(rawComponents: FloatArray): FaceEmbedding {
             require(rawComponents.isNotEmpty()) { "An embedding cannot be empty" }
             require(rawComponents.all(Float::isFinite)) { "Embedding values must be finite" }
