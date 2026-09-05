@@ -2,6 +2,7 @@ package com.ritesh.iykykcollage.ui
 
 import com.ritesh.iykykcollage.face.FaceDetectionSummary
 import com.ritesh.iykykcollage.identity.AppearanceCountingResult
+import com.ritesh.iykykcollage.identity.RepresentativeSelectionResult
 import com.ritesh.iykykcollage.model.SelectedVideo
 import com.ritesh.iykykcollage.tracking.FaceTrackletResult
 import com.ritesh.iykykcollage.video.VideoMetadata
@@ -27,6 +28,7 @@ sealed interface CollageUiState {
         val faceSummary: FaceDetectionSummary,
         val trackletResult: FaceTrackletResult,
         val appearanceResult: AppearanceCountingResult,
+        val representativeResult: RepresentativeSelectionResult,
     ) : CollageUiState
 
     data class Failure(

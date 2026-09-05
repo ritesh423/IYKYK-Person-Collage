@@ -148,6 +148,12 @@ Final manual validation on a Samsung SM-M336BU running API 36 produced:
 
 Sample 1 matches the assignment's exact ground truth: five people, four appearances each, and twenty appearances overall. The other supplied videos validate generalization without hardcoded filenames, timestamps, identities, or expected counts.
 
+## Representative-face selection
+
+After appearance counting, the app selects one representative observation for every identified person. It first prefers observations that already passed the strict representative-quality policy. If none exists, it safely falls back to that person's best embedded observation so the later collage can still contain every identified person.
+
+Candidates receive a weighted score from face-crop sharpness (30%), frontality (25%), open eyes (20%), complete frame visibility (15%), and smile probability (10%). Sharpness is measured on the aligned `112 × 112` face while that temporary crop is already available for embedding; only the numeric score is retained. The selected observation keeps its source timestamp and bounds, allowing the collage stage to decode only the chosen frames instead of holding video bitmaps in memory.
+
 ## Build
 
 Prerequisites:
@@ -162,4 +168,4 @@ Run the checks from the repository root:
 ./gradlew testDebugUnitTest assembleDebug lintDebug
 ```
 
-Representative selection and collage-output validation will be added as their respective milestones are completed.
+Collage rendering, saving, sharing, and final output validation will be added in the remaining milestone.

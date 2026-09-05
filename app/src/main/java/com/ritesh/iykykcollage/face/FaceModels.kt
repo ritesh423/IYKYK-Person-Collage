@@ -49,6 +49,7 @@ data class FaceObservation(
     val leftEyePosition: FacePoint? = null,
     val rightEyePosition: FacePoint? = null,
     val embedding: FaceEmbedding? = null,
+    val sharpnessScore: Float? = null,
     val fromSideBySideLayout: Boolean = false,
 )
 

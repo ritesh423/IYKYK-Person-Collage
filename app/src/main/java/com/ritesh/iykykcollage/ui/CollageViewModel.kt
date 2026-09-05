@@ -7,6 +7,7 @@ import com.ritesh.iykykcollage.face.FaceDetectionAccumulator
 import com.ritesh.iykykcollage.face.FaceEmbedder
 import com.ritesh.iykykcollage.identity.FaceAppearanceCounter
 import com.ritesh.iykykcollage.identity.FaceIdentityClusterer
+import com.ritesh.iykykcollage.identity.RepresentativeFaceSelector
 import com.ritesh.iykykcollage.model.SelectedVideo
 import com.ritesh.iykykcollage.tracking.FaceTrackletTracker
 import com.ritesh.iykykcollage.tracking.SceneBoundaryDetector
@@ -28,6 +29,7 @@ class CollageViewModel(
     private val sceneBoundaryDetector: SceneBoundaryDetector,
     private val identityClusterer: FaceIdentityClusterer,
     private val appearanceCounter: FaceAppearanceCounter,
+    private val representativeFaceSelector: RepresentativeFaceSelector,
     private val processingDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow<CollageUiState>(CollageUiState.AwaitingVideo)
@@ -104,6 +106,7 @@ class CollageViewModel(
                         identityClusterer.cluster(trackletResult.tracklets),
                     )
                 }
+                val representativeResult = representativeFaceSelector.select(appearanceResult)
                 _uiState.value = CollageUiState.PeopleCounted(
                     video = video,
                     metadata = result.metadata,
@@ -112,6 +115,7 @@ class CollageViewModel(
                     faceSummary = faceAccumulator.snapshot(),
                     trackletResult = trackletResult,
                     appearanceResult = appearanceResult,
+                    representativeResult = representativeResult,
                 )
             } catch (error: CancellationException) {
                 throw error

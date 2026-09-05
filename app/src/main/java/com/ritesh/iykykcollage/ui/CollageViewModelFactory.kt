@@ -7,6 +7,7 @@ import com.ritesh.iykykcollage.face.LiteRtFaceEmbedder
 import com.ritesh.iykykcollage.face.MlKitFaceAnalyzer
 import com.ritesh.iykykcollage.identity.FaceAppearanceCounter
 import com.ritesh.iykykcollage.identity.FaceIdentityClusterer
+import com.ritesh.iykykcollage.identity.RepresentativeFaceSelector
 import com.ritesh.iykykcollage.tracking.BitmapSceneBoundaryDetector
 import com.ritesh.iykykcollage.video.AndroidVideoFrameSampler
 
@@ -25,6 +26,7 @@ class CollageViewModelFactory(
                 sceneBoundaryDetector = BitmapSceneBoundaryDetector(),
                 identityClusterer = FaceIdentityClusterer(),
                 appearanceCounter = FaceAppearanceCounter(),
+                representativeFaceSelector = RepresentativeFaceSelector(),
             ) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")

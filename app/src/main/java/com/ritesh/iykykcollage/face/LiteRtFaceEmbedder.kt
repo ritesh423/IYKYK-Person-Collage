@@ -61,6 +61,7 @@ class LiteRtFaceEmbedder(
                             try {
                                 face.copy(
                                     embedding = runtime.embeddingFor(alignedFace),
+                                    sharpnessScore = alignedFace.sharpnessScore().toFloat(),
                                     fromSideBySideLayout = correctSideBySideCompression,
                                 )
                             } finally {
